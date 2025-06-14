@@ -1,25 +1,30 @@
 import sys
 import pygame as pg
 import os
+import socket
+import threading
 
 #Global Var
 SCREEN_WIDTH = 612
 SCREEN_HEIGHT = 612
 
+chossen_time = None
 WHITE_TIME = 600
 BLACK_TIME = 600
 WHITE_TIME_LEFT = 600 
-BLACK_TIME_LEFT = 600 
+BLACK_TIME_LEFT = 600  
 
 Playing = True
 
-white_player_name = ""
-black_player_name = ""
+first_player_name = ""
+second_player_name = ""
 
 number_of_moves = 0
 fifty_move_counter = 0
 
 position_history = []
+
+chosen_mode = None
 
 #coordonées de chaques pièces blanches
 pionB = {1 : (45, 435), 2 : (110, 435), 3 : (175, 435), 4 : (240, 435), 5 : (305, 435), 6 : (370, 435), 7 : (435, 435), 8 : (500, 435)}
@@ -84,21 +89,50 @@ pg.display.set_caption("chess")
 # fonctions d'affichage --------------------------------------------------------------------------
 
 def ask_players_name() :
-    global white_player_name, black_player_name
+    #demander aux joueurs de saisir leurs noms ainsi que choisir leur cadance
+    #possibilité également de jouer en ligne
+    global first_player_name, second_player_name
+    global chosen_time
     font = pg.font.SysFont(None, 40)
     input_box_white = pg.Rect(180, 200, 250, 50)
     input_box_black = pg.Rect (180, 300, 250, 50)
-    color_inactive = pg.Color("lightskyblue3")
-    color_active = pg.Color("dodgerblue2")
+    color_inactive = pg.Color("white")
+    color_active = pg.Color("grey")
     color_white = color_inactive
     color_black = color_inactive
-    
     
     active_white = False
     active_black = False
     text_white = ''
     text_black = ''
     done = False
+    selected_time = False
+
+    small_font = pg.font.SysFont(None, 36)
+
+    # bouton pour jouer en ligne
+    # bouton pour créé une partie en ligne
+    create_button_text = small_font.render("Créé partie", True, (255, 255, 255))
+    create_button_rect = pg.Rect(0, 0, 200, 50)
+    create_button_rect.center = (105, 30)
+    #bouton pour rejoindre une partie en ligne
+    join_button_texte = small_font.render("Rejoindre partie", True, (255, 255, 255))
+    join_button_rect = pg.Rect(0, 0, 200, 50)
+    join_button_rect.center = (SCREEN_WIDTH - 105, 30)
+
+    # Bouton pour choisir la cadence de jeu
+    # 10 minutes
+    ten_button_text = small_font.render("10 min", True, (255, 255, 255))
+    ten_button_rect = pg.Rect(0, 0, 180, 50)
+    ten_button_rect.center = (SCREEN_WIDTH // 2 - 200, SCREEN_HEIGHT // 2 + 100)
+    # 5 minutes
+    five_button_text = small_font.render("5 min", True, (255, 255, 255))
+    five_button_rect = pg.Rect(0, 0, 180, 50)
+    five_button_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 100)
+    # 3 minutes
+    three_button_text = small_font.render("3 min", True, (255, 255, 255))
+    three_button_rect = pg.Rect(0, 0, 180, 50)
+    three_button_rect.center = (SCREEN_WIDTH // 2 + 200, SCREEN_HEIGHT // 2 + 100)
 
     while not done:
         for event in pg.event.get():
@@ -106,16 +140,36 @@ def ask_players_name() :
                 pg.quit()
                 sys.exit()
             if event.type == pg.MOUSEBUTTONDOWN:
+                '''
+                if create_button_rect.collidepoint(event.pos) :
+                    chosen_mode = 
+                elif join_button_rect.collidepoint(event.pos) :
+                    '''
                 # Si clic sur une box, active la saisie
-                if input_box_white.collidepoint(event.pos):
+                if input_box_white.collidepoint(event.pos) :
+                    color_white = color_active
                     active_white = True
                     active_black = False
-                elif input_box_black.collidepoint(event.pos):
+                elif input_box_black.collidepoint(event.pos) :
+                    color_black = color_active
                     active_black = True
                     active_white = False
                 else:
                     active_white = False
                     active_black = False
+                if text_white and text_black :
+                    if ten_button_rect.collidepoint(event.pos) :
+                        chosen_time = 600
+                        selected_time = 600
+                        done = True
+                    elif five_button_rect.collidepoint(event.pos) :
+                        chosen_time = 300
+                        selected_time = 300
+                        done = True
+                    elif three_button_rect.collidepoint(event.pos) :
+                        chosen_time = 180
+                        selected_time = 180
+                        done = True
             if event.type == pg.KEYDOWN:
                 if active_white:
                     if event.key == pg.K_RETURN:
@@ -133,22 +187,32 @@ def ask_players_name() :
                     else:
                         if len(text_black) < 15:
                             text_black += event.unicode
-                if event.key == pg.K_RETURN and text_white and text_black:
-                    done = True
 
-        screen.fill((255, 255, 255))
-        title = font.render("Entrez le nom des joueurs", True, (0, 0, 0))
+        screen.fill((23, 66, 102))
+        title = font.render("Entrez le nom des joueurs", True, (255, 255, 255))
         screen.blit(title, (120, 100))
-        txt_surface_white = font.render(text_white or "Nom des blancs", True, (0, 0, 0))
-        txt_surface_black = font.render(text_black or "Nom des noirs", True, (0, 0, 0))
+        txt_surface_white = font.render(text_white or "Nom des blancs", True, (255, 255, 255))
+        txt_surface_black = font.render(text_black or "Nom des noirs", True, (255, 255, 255))
         pg.draw.rect(screen, color_white if active_white else color_inactive, input_box_white, 2)
         pg.draw.rect(screen, color_black if active_black else color_inactive, input_box_black, 2)
         screen.blit(txt_surface_white, (input_box_white.x+5, input_box_white.y+10))
         screen.blit(txt_surface_black, (input_box_black.x+5, input_box_black.y+10))
+        pg.draw.rect(screen, (10, 44, 81), ten_button_rect, border_radius=10)
+        screen.blit(ten_button_text, ten_button_text.get_rect(center=ten_button_rect.center))
+        pg.draw.rect(screen, (10, 44, 81), five_button_rect, border_radius=10)
+        screen.blit(five_button_text, five_button_text.get_rect(center=five_button_rect.center))
+        pg.draw.rect(screen, (10, 44, 81), three_button_rect, border_radius=10)
+        screen.blit(three_button_text, three_button_text.get_rect(center=three_button_rect.center))
+        pg.draw.rect(screen, (10, 44, 81), create_button_rect, border_radius=10)
+        screen.blit(create_button_text, create_button_text.get_rect(center=create_button_rect.center))
+        pg.draw.rect(screen, (10, 44, 81), join_button_rect, border_radius=10)
+        screen.blit(join_button_texte, join_button_texte.get_rect(center=join_button_rect.center))
         pg.display.flip()
 
-    white_player_name = text_white
-    black_player_name = text_black 
+    first_player_name = text_white
+    second_player_name = text_black 
+    WHITE_TIME, BLACK_TIME = selected_time, selected_time
+    WHITE_TIME_LEFT, BLACK_TIME_LEFT = selected_time, selected_time
 
 def print_pieces() :
     # affiche les pièces  
@@ -180,23 +244,30 @@ def print_pieces() :
 def endgame_print(winner: str):
     #affichage de fin de partie en cas d'echec et mat
     global Playing, number_of_moves
-    global white_player_name, black_player_name 
+    global first_player_name, second_player_name 
     global WHITE_TIME_LEFT, BLACK_TIME_LEFT
+    global curent_turn
 
     font = pg.font.SysFont(None, 48)
     small_font = pg.font.SysFont(None, 36)
-    if winner == "white":
-        message = f"Échec et mat ! {white_player_name} a gagné!"
-        message2 = f"Félicitations {white_player_name} !"
-    elif winner == "black":
-        message = f"Échec et mat ! {black_player_name} a gagné !"
-        message2 = f"Félicitations {black_player_name}"
+    if winner == "white_on_time" :
+        message = f"Plus de temps ! {first_player_name} a gagné!"
+        message2 = f"Félicitations {first_player_name} !"
+    elif winner == "white" :
+        message = f"Plus de temps ! {first_player_name} a gagné!"
+        message2 = f"Félicitations {first_player_name} !"
+    elif winner == "black_on_time" and WHITE_TIME_LEFT <= 0 :
+        message = f"Échec et mat ! {first_player_name} a gagné!"
+        message2 = f"Félicitations {first_player_name} !"
+    elif winner == "black" :
+        message = f"Échec et mat ! {second_player_name} a gagné !"
+        message2 = f"Félicitations {second_player_name}"
     elif winner == "white_path" :
         message = "Match nul par Path."
-        message2 = f"{white_player_name} ne peut plus bouger"
+        message2 = f"{first_player_name} ne peut plus bouger"
     elif winner == "black_path" :
         message = "Match nul par Path."
-        message2 = f"{black_player_name} ne peut plus bouger"
+        message2 = f"{second_player_name} ne peut plus bouger"
     elif winner == "material" :
         message = "Math nul par manque de matériel"
         message2 = "Vous ne pouvez pas faire echec et mat"
@@ -207,57 +278,64 @@ def endgame_print(winner: str):
         message = "Match nul par répétition" 
         message2 = "Il y a eu 3 fois la même position"
     
-    if number_of_moves == 4 : 
-        if winner == "white" :
-            message = "Mat du berger"
-            message2 = f"Franchement {white_player_name} t'abuse"
-        else :
-            message1 = "Mat du berger !"
-            message2 =f"Franchement {black_player_name} t'abuse"
-        
-    move_message = f"Vous avez joué {number_of_moves} coups dans la partie"
+    if curent_turn == "white" :
+        move_message = f"Vous avez joué {int((number_of_moves) // 2)} coups dans la partie"
+    else :
+        move_message = f"Vous avez joué {int((number_of_moves + 1.5) // 2)} coups dans la partie"
     text = font.render(message, True, (255, 0, 0))
     text2 = font.render(message2, True, (255, 0, 0))
     text_moves = small_font.render(move_message, True, (0, 0, 0))
-    rect_message = text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 40))
+    rect_message = text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2  - 40))
     rect_message2 = text2.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
     rect_move_message = text_moves.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 40))
+    
     # Bouton rejouer
-    button_text = small_font.render("Rejouer", True, (255, 255, 255))
-    button_rect = pg.Rect(0, 0, 180, 50)
-    button_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 80)
+    replay_button_text = small_font.render("Rejouer", True, (255, 255, 255))
+    replay_button_rect = pg.Rect(0, 0, 180, 50)
+    replay_button_rect.center = (SCREEN_WIDTH // 2 - 120, SCREEN_HEIGHT // 2 + 80)
+
+    # Bouton quitter
+    leave_button_text = small_font.render("Quitter", True, (255, 255, 255))
+    leave_button_rect = pg.Rect(0, 0, 180, 50)
+    leave_button_rect.center = (SCREEN_WIDTH // 2 + 120, SCREEN_HEIGHT // 2 + 80)
 
     while True:
-        screen.fill((255, 255, 255))
+        screen.fill((23, 66, 102))
         screen.blit(text, rect_message)
         screen.blit(text2, rect_message2)
         screen.blit(text_moves, rect_move_message)
 
-        pg.draw.rect(screen, (0, 128, 0), button_rect, border_radius=10)
-        screen.blit(button_text, button_text.get_rect(center=button_rect.center))
+        pg.draw.rect(screen, (10, 44, 81), replay_button_rect, border_radius=10)
+        screen.blit(replay_button_text, replay_button_text.get_rect(center=replay_button_rect.center))
+        pg.draw.rect(screen, (10, 44, 81), leave_button_rect, border_radius=10)
+        screen.blit(leave_button_text, leave_button_text.get_rect(center=leave_button_rect.center))
         pg.display.flip()
-        for event in pg.event.get():
-            if event.type == pg.QUIT:
+        for event in pg.event.get() :
+            if event.type == pg.QUIT :
                 pg.quit()
                 sys.exit()
-            if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
-                if button_rect.collidepoint(event.pos):
+            if event.type == pg.MOUSEBUTTONDOWN and event.button == 1 :
+                if replay_button_rect.collidepoint(event.pos) :
                     reset_game()
                     Playing = True
                     return
+                elif leave_button_rect.collidepoint(event.pos) :
+                    Playing = False
+                    pg.quit()
+                    sys.exit()
                 
 def chrono_print() :
     #affichage du chrono des deux joueurs 
-    global white_player_name, black_player_name
+    global first_player_name, second_player_name
 
     font = pg.font.SysFont(None, 32)
-
+    
     white_min, white_sec = divmod(WHITE_TIME_LEFT, 60)
     black_min, black_sec = divmod(BLACK_TIME_LEFT, 60)
 
     pg.draw.rect(screen, (0, 0, 0), (0, 0, SCREEN_WIDTH, 40))  # bande en haut pour afficher chrono
-    white_text = font.render(f"{white_player_name} : {white_min:02} : {white_sec:02}", True, (255, 255, 255) )
-    black_text = font.render(f"{black_player_name} : {black_min:02} : {black_sec:02}", True, (255, 255, 255) )
+    white_text = font.render(f"{first_player_name} : {white_min:02} : {white_sec:02}", True, (255, 255, 255) )
+    black_text = font.render(f"{second_player_name} : {black_min:02} : {black_sec:02}", True, (255, 255, 255) )
     
     screen.blit(white_text, (5, 10))
     screen.blit(black_text, (320, 10))
@@ -409,6 +487,18 @@ def is_checkmate(color:str) :
                         continue
                     removed_piece = None
                     piece_actual_coo = dico[key]
+                    if dico is pionB and not check_pon_move(piece_actual_coo, squares, color):
+                        continue
+                    if dico is cavalierB and not check_knight_move(piece_actual_coo, squares, color):
+                        continue
+                    if dico is fouB and not check_bishop_move(piece_actual_coo, squares, color):
+                        continue
+                    if dico is tourB and not check_tower_move(piece_actual_coo, squares, color):
+                        continue
+                    if dico is dameB and not check_queen_move(piece_actual_coo, squares, color):
+                        continue
+                    if dico is roiB and not check_king_move(piece_actual_coo, squares, color):
+                        continue
                     if check_case(squares) == False:
                         for d in pieces:
                             for k, v in list(d.items()):
@@ -438,6 +528,18 @@ def is_checkmate(color:str) :
                         continue
                     removed_piece = None
                     piece_actual_coo = dico[key]
+                    if dico is pionN and not check_pon_move(piece_actual_coo, squares, color):
+                        continue
+                    if dico is cavalierN and not check_knight_move(piece_actual_coo, squares, color):
+                        continue
+                    if dico is fouN and not check_bishop_move(piece_actual_coo, squares, color):
+                        continue
+                    if dico is tourN and not check_tower_move(piece_actual_coo, squares, color):
+                        continue
+                    if dico is dameN and not check_queen_move(piece_actual_coo, squares, color):
+                        continue
+                    if dico is roiN and not check_king_move(piece_actual_coo, squares, color):
+                        continue
                     if check_case(squares) == False:
                         for d in pieces:
                             for k, v in list(d.items()):
@@ -457,6 +559,7 @@ def is_checkmate(color:str) :
                     dico[key] = piece_actual_coo
                     if removed_piece:
                         removed_piece[0][removed_piece[1]] = removed_piece[2]
+        print("il y a mat")
         return True 
 
 def is_path(color:str) :
@@ -603,9 +706,12 @@ def reset_game():
     global en_passant_square, curent_turn, Playing
     global pieces, white, black
     global WHITE_TIME_LEFT, BLACK_TIME_LEFT, used_time_to_play
+    global number_of_moves
+    global first_player_name, second_player_name
+    global chosen_time
 
-    WHITE_TIME_LEFT = 600
-    BLACK_TIME_LEFT = 600
+    WHITE_TIME_LEFT = chosen_time
+    BLACK_TIME_LEFT = chosen_time
     used_time_to_play = pg.time.get_ticks()
 
     pionB = {1: (45, 435), 2: (110, 435), 3: (175, 435), 4: (240, 435), 5: (305, 435), 6: (370, 435), 7: (435, 435), 8: (500, 435)}
@@ -626,6 +732,8 @@ def reset_game():
     white = [pionB, cavalierB, fouB, tourB, dameB, roiB]
     black = [pionN, cavalierN, fouN, tourN, dameN, roiN]
 
+    number_of_moves = 0
+
     roiB_has_moved = False
     roiN_has_moved = False
     tourB1_has_moved = False
@@ -635,6 +743,9 @@ def reset_game():
     en_passant_square = None
     curent_turn = "white"
     Playing = True
+
+    # Echanger les couleurs des jouers 
+    first_player_name, second_player_name = second_player_name, first_player_name
 
 # fonctions déplacement des pièces -------------------------------------------------
 
@@ -1238,6 +1349,10 @@ def is_move_legal(selected_piece:dict, new_piece_coo:tuple) :
 
 selected_piece = None
 ask_players_name()
+WHITE_TIME = chosen_time
+BLACK_TIME = chosen_time
+WHITE_TIME_LEFT = chosen_time 
+BLACK_TIME_LEFT = chosen_time 
 used_time_to_play = pg.time.get_ticks()
 while True :
     if not Playing :
@@ -1274,20 +1389,19 @@ while True :
                     endgame_print(draw_reason)
 
                 if curent_turn == "white" :
-                    if is_checkmate("black") :
-                        Playing = False
-                        endgame_print("white")
-                else :
-                    if is_checkmate("white") :
-                        Playing = False
-                        endgame_print("black")
-
-                if curent_turn == "white" :
                     curent_turn = "black" 
                     number_of_moves += 1
                 elif curent_turn == "black" :
                     curent_turn = "white"
-                
+                    number_of_moves += 1
+
+                if is_checkmate(curent_turn) :
+                    Playing = False 
+                    if curent_turn == "white" :
+                        endgame_print("black")
+                    else :
+                        endgame_print("white")
+
                 selected_piece = None
     now = pg.time.get_ticks()
     elapsed = (now - used_time_to_play) // 1000
@@ -1304,13 +1418,13 @@ while True :
             endgame_print("material")
         else:
             Playing = False
-            endgame_print("black")
+            endgame_print("black_on_time")
     elif BLACK_TIME_LEFT <= 0 :
         if is_not_enough_material() :
             Playing = False
             endgame_print("material")
         else:
             Playing = False
-            endgame_print("white")
+            endgame_print("white_on_time")
             
     pg.display.flip()
